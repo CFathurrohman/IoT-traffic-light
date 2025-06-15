@@ -3,8 +3,8 @@
 
 // ===== MAC ADDRESS ======
 uint8_t macA[] = {0x3C, 0x8A, 0x1F, 0xAE, 0xB4, 0xC0}; // Kelompok 5
-uint8_t macB[] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0x02}; // Kelompok 4
-uint8_t macC[] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0x03}; // Kelompok ??
+uint8_t macB[] = {0x3C, 0x8A, 0x1F, 0xAE, 0x81, 0xFC}; // Kelompok 4
+uint8_t macC[] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0x03}; // Kelompok ?? (placeholder)
 
 // ===== Variabel kendaraan =====
 int kendaraanA = 0;
@@ -113,10 +113,8 @@ void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
 
       Serial.printf("HijauA: %d | HijauB: %d | HijauC: %d -> DIKIRIM\n", kirimA, kirimB, kirimC);
 
-      // Kirim juga lewat Serial2 (pin 18 TX, 19 RX)
       Serial2.printf("%d,%d,%d\n", kirimA, kirimB, kirimC);
 
-      // Reset data
       kendaraanA = kendaraanB = kendaraanC = 0;
     }
   } else {
