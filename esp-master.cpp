@@ -173,7 +173,7 @@ void setup()
   WiFi.mode(WIFI_STA);
 
   // Setup UART2 di pin 18 (TX) & 19 (RX)
-  Serial2.begin(9600, SERIAL_8N1, 19, 18); // RX, TX
+  Serial2.begin(9600, SERIAL_8N1, 19, 18); // RX    , TX
 
   if (esp_now_init() != ESP_OK)
   {
