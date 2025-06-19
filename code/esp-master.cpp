@@ -12,14 +12,8 @@ int kendaraanB = 0;
 int kendaraanC = 0;
 
 // ===== Hasil Waktu Hijau =====
-struct HasilWaktuHijau {
-  int hijauA;
-  int hijauB;
-  int hijauC;
-};
-
-// ===== Struktur data kirim untuk ESP-NOW =====
-struct HijauPacket {
+struct HasilWaktuHijau
+{
   int hijauA;
   int hijauB;
   int hijauC;
@@ -151,15 +145,17 @@ void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len)
     {
       HasilWaktuHijau hasil = hitungWaktuHijau(kendaraanA, kendaraanB, kendaraanC);
 
-      HijauPacket packet = {hasil.hijauA, hasil.hijauB, hasil.hijauC};
+      int kirimA = hasil.hijauA;
+      int kirimB = hasil.hijauB;
+      int kirimC = hasil.hijauC;
 
-      esp_now_send(macA, (uint8_t *)&packet, sizeof(packet));
-      esp_now_send(macB, (uint8_t *)&packet, sizeof(packet));
-      esp_now_send(macC, (uint8_t *)&packet, sizeof(packet));
+      esp_now_send(macA, (uint8_t *)&kirimA, sizeof(kirimA));
+      esp_now_send(macB, (uint8_t *)&kirimB, sizeof(kirimB));
+      esp_now_send(macC, (uint8_t *)&kirimC, sizeof(kirimC));
 
-      Serial.printf("HijauA: %d | HijauB: %d | HijauC: %d -> DIKIRIM KE SEMUA\n", packet.hijauA, packet.hijauB, packet.hijauC);
+      Serial.printf("HijauA: %d | HijauB: %d | HijauC: %d -> DIKIRIM\n", kirimA, kirimB, kirimC);
 
-      Serial2.printf("%d,%d,%d,%d,%d,%d\n", packet.hijauA, packet.hijauB, packet.hijauC, kendaraanA, kendaraanB, kendaraanC);
+      Serial2.printf("%d,%d,%d,%d,%d,%d\n", kirimA, kirimB, kirimC, kendaraanA, kendaraanB, kendaraanC);
 
       kendaraanA = kendaraanB = kendaraanC = 0;
     }
@@ -176,7 +172,8 @@ void setup()
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
 
-  Serial2.begin(9600, SERIAL_8N1, 19, 18);
+  // Setup UART2 di pin 18 (TX) & 19 (RX)
+  Serial2.begin(9600, SERIAL_8N1, 19, 18); // RX    , TX
 
   if (esp_now_init() != ESP_OK)
   {
@@ -187,23 +184,18 @@ void setup()
 
   esp_now_register_recv_cb(onReceive);
 
-  esp_now_peer_info_t peerA = {};
-  peerA.channel = 0;
-  peerA.encrypt = false;
-  memcpy(peerA.peer_addr, macA, 6);
-  esp_now_add_peer(&peerA);
+  esp_now_peer_info_t peer = {};
+  peer.channel = 0;
+  peer.encrypt = false;
 
-  esp_now_peer_info_t peerB = {};
-  peerB.channel = 0;
-  peerB.encrypt = false;
-  memcpy(peerB.peer_addr, macB, 6);
-  esp_now_add_peer(&peerB);
+  memcpy(peer.peer_addr, macA, 6);
+  esp_now_add_peer(&peer);
 
-  esp_now_peer_info_t peerC = {};
-  peerC.channel = 0;
-  peerC.encrypt = false;
-  memcpy(peerC.peer_addr, macC, 6);
-  esp_now_add_peer(&peerC);
+  memcpy(peer.peer_addr, macB, 6);
+  esp_now_add_peer(&peer);
+
+  memcpy(peer.peer_addr, macC, 6);
+  esp_now_add_peer(&peer);
 
   Serial.println("ESP-NOW + UART2 Siap");
 }
