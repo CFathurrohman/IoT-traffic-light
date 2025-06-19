@@ -399,8 +399,8 @@ void setupWiFiDanEspNow() {
 
 void setup() {
   Serial.begin(115200);
-  SerialUART.begin(9600, SERIAL_8N1, 18, 19);
-  Serial.println("\n====== MASTER CONTROLLER (DEBUG LENGKAP AKTIF) START ======");
+  SerialUART.begin(9600, SERIAL_8N1, 16, 17);
+  Serial.println("\n====== MASTER CONTROLLER START ======");
 
   setupWiFiDanEspNow();
   setupPeersEspNow();
