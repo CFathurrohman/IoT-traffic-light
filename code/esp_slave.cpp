@@ -10,7 +10,7 @@ StaticJsonDocument<200> doc;
 
 // esp pusat
 uint8_t macPusat[] = {0xC0, 0x5D, 0x89, 0xDD, 0x44, 0xC8};
-int waktuHijauC = 10;
+int waktuHijauC = 0;
 int kendaraanC = 0;
 String status_hijau = "LOW";
 String status_kuning = "LOW";
@@ -21,6 +21,7 @@ String status_merah = "HIGH";
 #define ECHO_PIN 35
 #define LED_MERAH 32
 #define LED_HIJAU 33
+#define LED_KUNING 4
 
 //variabel untuk menghitung jarak/detik
 float duration_second;
@@ -72,8 +73,10 @@ void setup() {
   // Inisialisasi pin LED
   pinMode(LED_MERAH, OUTPUT);
   pinMode(LED_HIJAU, OUTPUT);
+  pinMode(LED_KUNING, OUTPUT);
   digitalWrite(LED_HIJAU, HIGH);
   digitalWrite(LED_MERAH, LOW);  // Merah menyala di awal
+  digitalWrite(LED_KUNING, LOW);  // Merah menyala di awal
 
   cycleStartTime = millis(); // MULAI TIMER CYCLE PERTAMA
 }
@@ -113,7 +116,7 @@ void loop() {
 // ==============================================================
 void setupSevenSegment() {
   byte numDigits = 2;
-  byte digitPins[] = {12, 13}; // Hanya pakai 2 digit ds1, ds2
+  byte digitPins[] = {13, 12}; // Hanya pakai 2 digit ds1, ds2
   byte segmentPins[] = {14, 27, 18, 22, 21, 26, 23, 19}; // a, b, c, d, e, f, g, dp
   bool resistorsOnSegments = false;
   byte hardwareConfig = COMMON_ANODE;
@@ -139,7 +142,7 @@ void updateTimerDisplay(String status_hijau, String status_kuning, String status
     }
     digitalWrite(LED_HIJAU, status_hijau == "HIGH" ? HIGH : LOW);
     digitalWrite(LED_MERAH, status_merah == "HIGH" ? HIGH : LOW);
-    // digitalWrite(LED_KUNING, status_kuning == "HIGH" ? HIGH : LOW);
+    digitalWrite(LED_KUNING, status_kuning == "HIGH" ? HIGH : LOW);
 
     // Reset timer jika habis
     if (deciSeconds < 0) {
@@ -147,7 +150,11 @@ void updateTimerDisplay(String status_hijau, String status_kuning, String status
     }
 
     int seconds = deciSeconds / 10;
-    sevseg.setNumber(seconds);  // Tampilkan ke seven segment
+    if (status_merah == "HIGH" || status_kuning == "HIGH") {
+      sevseg.blank();
+    } else {
+      sevseg.setNumber(seconds);  // Tampilkan ke seven segment
+    }
   }
 }
 
@@ -157,18 +164,35 @@ void detectVehicleIfGreen(int waktuLampuHijau) {
   // Kalibrasi hanya sekali
   if (!isCalibrated) {
     float sum = 0.0;
-    for (int i = 0; i < 10; i++) {
+    float samples[20];  // Menyimpan 15 sampel jarak
+
+    Serial.println("🔧 Mulai Kalibrasi Jarak Ultrasonic...");
+    for (int i = 0; i < 20; i++) {
       digitalWrite(TRIG_PIN, HIGH);
       delayMicroseconds(10);
       digitalWrite(TRIG_PIN, LOW);
       float duration = pulseIn(ECHO_PIN, HIGH);
-      sum += 0.017 * duration;
+      float distance = duration * 0.034 / 2;
+      samples[i] = distance;
+
+      Serial.print("Sampel [");
+      Serial.print(i);
+      Serial.print("]: ");
+      Serial.print(distance);
+      Serial.println(" cm");
+
       delay(100);
     }
-    baselineDistance = sum / 10.0;
+
+    for (int i = 9; i <= 19; i++) {
+      sum += samples[i];
+    }
+    baselineDistance = sum / 11.0;
+
     isCalibrated = true;
-    Serial.print("Baseline (tanpa kendaraan): ");
-    Serial.println(baselineDistance);
+    Serial.print("✅ Baseline (rata-rata index 9-14): ");
+    Serial.print(baselineDistance);
+    Serial.println(" cm");
   }
 
   // Sampling setiap 100ms
@@ -185,7 +209,7 @@ void detectVehicleIfGreen(int waktuLampuHijau) {
 
       static float lastDistance = distance;
       float thresholdDistance = baselineDistance - 5.0;
-      const float vehicleTriggerRange = 3.0;
+      const float vehicleTriggerRange = 1.6;
 
       if (lastDistance - distance > vehicleTriggerRange && !isVehicleDetected) {
         isVehicleDetected = true;
@@ -201,7 +225,7 @@ void detectVehicleIfGreen(int waktuLampuHijau) {
 
     // Cek pergantian siklus
     if (millis() - cycleStartTime >= waktuLampuHijau * 1000) {
-      Serial.print("[JALUR C] ");
+      Serial.print("[JALUR A] ");
       Serial.print(waktuLampuHijau);
       Serial.print(" detik hijau selesai. Total Kendaraan: ");
       Serial.println(vehicleCount);
@@ -219,7 +243,7 @@ void detectVehicleIfGreen(int waktuLampuHijau) {
 
   // Cek pergantian siklus
   if (millis() - cycleStartTime >= waktuLampuHijau * 1000) {
-    Serial.print("[JALUR C] ");
+    Serial.print("[JALUR A] ");
     Serial.print(waktuLampuHijau);
     Serial.print(" detik hijau selesai. Total Kendaraan: ");
     Serial.println(vehicleCount);
@@ -258,7 +282,7 @@ void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   DeserializationError error = deserializeJson(doc, incomingJson);
   if (!error) {
     const char* lajur = doc["lajur"];
-    if (strcmp(lajur, "C") == 0) {
+    if (strcmp(lajur, "A") == 0) {
       if (doc.containsKey("waktu_hijau")) {
         waktuHijauC = doc["waktu_hijau"];
         deciSeconds = waktuHijauC * 10;
@@ -286,7 +310,7 @@ void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
 
 void kirimKendaraanKePusat(int jumlah) {
   esp_now_send(macPusat, (uint8_t *)&jumlah, sizeof(jumlah));
-  Serial.println("Jalur C");
+  Serial.println("Jalur A");
   Serial.print("Jumlah kendaraan dikirim ke pusat: ");
   Serial.println(jumlah);
 }
